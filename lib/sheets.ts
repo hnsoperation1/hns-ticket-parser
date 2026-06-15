@@ -2,7 +2,7 @@ import { google } from 'googleapis';
 import { ParsedBooking } from '@/types/booking';
 
 const SHEET_ID = process.env.GOOGLE_SHEET_ID!;
-const SHEET_NAME = 'Sheet1';
+const SHEET_NAME = process.env.GOOGLE_SHEET_NAME ?? '';
 
 function getAuth() {
   return new google.auth.GoogleAuth({
@@ -37,7 +37,7 @@ export async function appendBookings(bookings: ParsedBooking[]): Promise<number>
 
   await sheets.spreadsheets.values.append({
     spreadsheetId: SHEET_ID,
-    range: `${SHEET_NAME}!A:J`,
+    range: SHEET_NAME ? `${SHEET_NAME}!A:J` : 'A:J',
     valueInputOption: 'USER_ENTERED',
     requestBody: { values: rows },
   });

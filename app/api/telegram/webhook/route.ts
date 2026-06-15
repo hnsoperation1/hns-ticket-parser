@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { parseTicketMessage } from '@/lib/openai';
 import { appendBookings } from '@/lib/sheets';
 import { logParse } from '@/lib/supabase';
+import { sendMessage, buildSuccessMessage } from '@/lib/telegram';
 
 // Telegram message filter: only process ticket-related messages
 function isTicketMessage(text: string): boolean {
@@ -89,6 +90,10 @@ export async function POST(req: NextRequest) {
     telegram_message_id: msg?.message_id,
     telegram_chat_id: msg?.chat.id,
   });
+
+  if (status === 'success' && msg?.chat.id) {
+    await sendMessage(msg.chat.id, buildSuccessMessage(rowsWritten));
+  }
 
   return NextResponse.json({ ok: true, rows_written: rowsWritten });
 }
