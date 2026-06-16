@@ -14,8 +14,7 @@ export async function sendMessage(chatId: number, text: string) {
 
 export function buildSuccessMessage(rowsWritten: number): string {
   return (
-    `✅ Xuất vé thành công!\n` +
-    `Đã ghi <b>${rowsWritten} booking</b> vào Google Sheets.\n\n` +
+    `✅ Đã ghi ${rowsWritten} booking vào Google Sheets.\n` +
     `📋 <a href="${getSheetUrl()}">Mở Google Sheets</a>`
   );
 }
