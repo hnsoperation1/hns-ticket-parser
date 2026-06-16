@@ -30,8 +30,14 @@ interface TelegramMessage {
 }
 
 function extractCommandAndText(msg: TelegramMessage): { command: string; ticketText: string } | null {
-  const text = msg.text ?? '';
-  const command = Object.keys(COMMAND_CONFIG).find((cmd) => text.startsWith(cmd));
+  const rawText = msg.text ?? '';
+  // Bỏ @BotName nếu có: /doc_ve_chuyen_gia@HnsKtVeBot → /doc_ve_chuyen_gia
+  const text = rawText.replace(/@\S+/, '').trim();
+
+  // Sort dài trước để tránh /doc_ve match nhầm /doc_ve_chuyen_gia
+  const command = Object.keys(COMMAND_CONFIG)
+    .sort((a, b) => b.length - a.length)
+    .find((cmd) => text === cmd || text.startsWith(cmd + ' '));
   if (!command) return null;
 
   // Cách 2: reply vào tin vé
