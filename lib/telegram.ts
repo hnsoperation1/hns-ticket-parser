@@ -11,9 +11,9 @@ export async function sendMessage(chatId: number, text: string) {
   });
 }
 
-export function buildSuccessMessage(rowsWritten: number, sheetId: string): string {
+export function buildSuccessMessage(rowsWritten: number, sheetId: string, label: string): string {
   return (
-    `✅ Đã ghi ${rowsWritten} booking vào Google Sheets.\n` +
-    `📋 <a href="${getSheetUrl(sheetId)}">Mở Google Sheets</a>`
+    `✅ Đã ghi ${rowsWritten} booking vào ${label}.\n` +
+    `📋 <a href="${getSheetUrl(sheetId)}">Mở ${label}</a>`
   );
 }

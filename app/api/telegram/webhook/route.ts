@@ -4,10 +4,16 @@ import { appendBookings } from '@/lib/sheets';
 import { logParse } from '@/lib/supabase';
 import { sendMessage, buildSuccessMessage } from '@/lib/telegram';
 
-// Map command → env var chứa Sheet ID
-const COMMAND_SHEET_MAP: Record<string, string | undefined> = {
-  '/doc_ve': process.env.GOOGLE_SHEET_ID,
-  '/doc_ve_chuyen_gia': process.env.GOOGLE_SHEET_ID_CHUYEN_GIA,
+// Map command → { sheetId, label hiển thị trong thông báo }
+const COMMAND_CONFIG: Record<string, { sheetId: string | undefined; label: string }> = {
+  '/doc_ve': {
+    sheetId: process.env.GOOGLE_SHEET_ID,
+    label: 'Google Sheets',
+  },
+  '/doc_ve_chuyen_gia': {
+    sheetId: process.env.GOOGLE_SHEET_ID_CHUYEN_GIA,
+    label: 'Google Sheets Chuyên Gia',
+  },
 };
 
 interface TelegramUpdate {
@@ -25,7 +31,7 @@ interface TelegramMessage {
 
 function extractCommandAndText(msg: TelegramMessage): { command: string; ticketText: string } | null {
   const text = msg.text ?? '';
-  const command = Object.keys(COMMAND_SHEET_MAP).find((cmd) => text.startsWith(cmd));
+  const command = Object.keys(COMMAND_CONFIG).find((cmd) => text.startsWith(cmd));
   if (!command) return null;
 
   // Cách 2: reply vào tin vé
@@ -64,7 +70,7 @@ export async function POST(req: NextRequest) {
   if (!extracted) return NextResponse.json({ ok: true });
 
   const { command, ticketText } = extracted;
-  const sheetId = COMMAND_SHEET_MAP[command];
+  const { sheetId, label } = COMMAND_CONFIG[command];
 
   if (!sheetId) {
     await sendMessage(msg.chat.id, `❌ Sheet ID chưa được cấu hình cho lệnh ${command}.`);
@@ -109,7 +115,7 @@ export async function POST(req: NextRequest) {
   });
 
   if (status === 'success') {
-    await sendMessage(msg.chat.id, buildSuccessMessage(rowsWritten, sheetId));
+    await sendMessage(msg.chat.id, buildSuccessMessage(rowsWritten, sheetId, label));
   }
 
   return NextResponse.json({ ok: true, rows_written: rowsWritten });
