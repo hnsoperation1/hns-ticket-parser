@@ -1,4 +1,7 @@
-const SHEET_URL = 'https://docs.google.com/spreadsheets/d/14wfqEsVxOIaLNkQ-hZCpSFXAo8mhsrohXwMZ6deU-uQ';
+function getSheetUrl(): string {
+  const id = process.env.GOOGLE_SHEET_ID;
+  return `https://docs.google.com/spreadsheets/d/${id}`;
+}
 
 export async function sendMessage(chatId: number, text: string) {
   const token = process.env.TELEGRAM_BOT_TOKEN!;
@@ -11,7 +14,8 @@ export async function sendMessage(chatId: number, text: string) {
 
 export function buildSuccessMessage(rowsWritten: number): string {
   return (
-    `✅ Đã ghi <b>${rowsWritten} booking</b> vào Google Sheets thành công!\n\n` +
-    `📋 Xem tại: ${SHEET_URL}`
+    `✅ Xuất vé thành công!\n` +
+    `Đã ghi <b>${rowsWritten} booking</b> vào Google Sheets.\n\n` +
+    `📋 <a href="${getSheetUrl()}">Mở Google Sheets</a>`
   );
 }
