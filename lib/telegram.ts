@@ -1,6 +1,5 @@
-function getSheetUrl(): string {
-  const id = process.env.GOOGLE_SHEET_ID;
-  return `https://docs.google.com/spreadsheets/d/${id}`;
+function getSheetUrl(sheetId: string): string {
+  return `https://docs.google.com/spreadsheets/d/${sheetId}`;
 }
 
 export async function sendMessage(chatId: number, text: string) {
@@ -12,9 +11,9 @@ export async function sendMessage(chatId: number, text: string) {
   });
 }
 
-export function buildSuccessMessage(rowsWritten: number): string {
+export function buildSuccessMessage(rowsWritten: number, sheetId: string): string {
   return (
     `✅ Đã ghi ${rowsWritten} booking vào Google Sheets.\n` +
-    `📋 <a href="${getSheetUrl()}">Mở Google Sheets</a>`
+    `📋 <a href="${getSheetUrl(sheetId)}">Mở Google Sheets</a>`
   );
 }

@@ -4,7 +4,11 @@ import { appendBookings } from '@/lib/sheets';
 import { logParse } from '@/lib/supabase';
 import { sendMessage, buildSuccessMessage } from '@/lib/telegram';
 
-const COMMAND = '/doc_ve';
+// Map command → env var chứa Sheet ID
+const COMMAND_SHEET_MAP: Record<string, string | undefined> = {
+  '/doc_ve': process.env.GOOGLE_SHEET_ID,
+  '/doc_ve_chuyen_gia': process.env.GOOGLE_SHEET_ID_CHUYEN_GIA,
+};
 
 interface TelegramUpdate {
   message?: TelegramMessage;
@@ -19,21 +23,22 @@ interface TelegramMessage {
   reply_to_message?: TelegramMessage;
 }
 
-// Cách 1: /doc_ve + nội dung vé trong cùng tin nhắn
-// Cách 2: reply vào tin vé với /doc_ve
-function extractTicketText(msg: TelegramMessage): string | null {
+function extractCommandAndText(msg: TelegramMessage): { command: string; ticketText: string } | null {
   const text = msg.text ?? '';
-
-  if (!text.startsWith(COMMAND)) return null;
+  const command = Object.keys(COMMAND_SHEET_MAP).find((cmd) => text.startsWith(cmd));
+  if (!command) return null;
 
   // Cách 2: reply vào tin vé
   if (msg.reply_to_message) {
-    return msg.reply_to_message.text ?? msg.reply_to_message.caption ?? null;
+    const ticketText = msg.reply_to_message.text ?? msg.reply_to_message.caption ?? null;
+    if (!ticketText) return null;
+    return { command, ticketText };
   }
 
   // Cách 1: nội dung sau command
-  const content = text.slice(COMMAND.length).trim();
-  return content.length > 0 ? content : null;
+  const content = text.slice(command.length).trim();
+  if (!content) return null;
+  return { command, ticketText: content };
 }
 
 export async function POST(req: NextRequest) {
@@ -55,8 +60,16 @@ export async function POST(req: NextRequest) {
   const msg = body.message ?? body.channel_post;
   if (!msg) return NextResponse.json({ ok: true });
 
-  const ticketText = extractTicketText(msg);
-  if (!ticketText) return NextResponse.json({ ok: true });
+  const extracted = extractCommandAndText(msg);
+  if (!extracted) return NextResponse.json({ ok: true });
+
+  const { command, ticketText } = extracted;
+  const sheetId = COMMAND_SHEET_MAP[command];
+
+  if (!sheetId) {
+    await sendMessage(msg.chat.id, `❌ Sheet ID chưa được cấu hình cho lệnh ${command}.`);
+    return NextResponse.json({ ok: true });
+  }
 
   const parseResult = await parseTicketMessage(ticketText);
 
@@ -79,7 +92,7 @@ export async function POST(req: NextRequest) {
   let errorMessage: string | undefined;
 
   try {
-    rowsWritten = await appendBookings(parseResult.bookings);
+    rowsWritten = await appendBookings(parseResult.bookings, sheetId);
   } catch (err) {
     status = 'partial';
     errorMessage = err instanceof Error ? err.message : String(err);
@@ -96,7 +109,7 @@ export async function POST(req: NextRequest) {
   });
 
   if (status === 'success') {
-    await sendMessage(msg.chat.id, buildSuccessMessage(rowsWritten));
+    await sendMessage(msg.chat.id, buildSuccessMessage(rowsWritten, sheetId));
   }
 
   return NextResponse.json({ ok: true, rows_written: rowsWritten });
