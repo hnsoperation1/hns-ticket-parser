@@ -16,6 +16,12 @@ const COMMAND_CONFIG: Record<string, { sheetId: string | undefined; label: strin
   },
 };
 
+// Sheet mặc định dùng cho chế độ tự động (bot là admin)
+const AUTO_SHEET = {
+  sheetId: process.env.GOOGLE_SHEET_ID,
+  label: 'Google Sheets',
+};
+
 interface TelegramUpdate {
   message?: TelegramMessage;
   channel_post?: TelegramMessage;
@@ -29,9 +35,13 @@ interface TelegramMessage {
   reply_to_message?: TelegramMessage;
 }
 
-function extractCommandAndText(msg: TelegramMessage): { command: string; ticketText: string } | null {
+function isTicketMessage(text: string): boolean {
+  return text.includes('Xuất vé thành công') || text.includes('Code:');
+}
+
+function extractCommandMode(msg: TelegramMessage): { ticketText: string; sheetId: string | undefined; label: string } | null {
   const rawText = msg.text ?? '';
-  // Bỏ @BotName nếu có: /doc_ve_chuyen_gia@HnsKtVeBot → /doc_ve_chuyen_gia
+  // Bỏ @BotName nếu có: /doc_ve@HnsKtVeBot → /doc_ve
   const text = rawText.replace(/@\S+/, '').trim();
 
   // Sort dài trước để tránh /doc_ve match nhầm /doc_ve_chuyen_gia
@@ -40,47 +50,36 @@ function extractCommandAndText(msg: TelegramMessage): { command: string; ticketT
     .find((cmd) => text === cmd || text.startsWith(cmd + ' '));
   if (!command) return null;
 
+  const config = COMMAND_CONFIG[command];
+
   // Cách 2: reply vào tin vé
   if (msg.reply_to_message) {
     const ticketText = msg.reply_to_message.text ?? msg.reply_to_message.caption ?? null;
     if (!ticketText) return null;
-    return { command, ticketText };
+    return { ticketText, ...config };
   }
 
   // Cách 1: nội dung sau command
   const content = text.slice(command.length).trim();
   if (!content) return null;
-  return { command, ticketText: content };
+  return { ticketText: content, ...config };
 }
 
-export async function POST(req: NextRequest) {
-  const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
-  if (secret) {
-    const headerSecret = req.headers.get('x-telegram-bot-api-secret-token');
-    if (headerSecret !== secret) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-  }
+function extractAutoMode(msg: TelegramMessage): { ticketText: string; sheetId: string | undefined; label: string } | null {
+  const text = msg.text ?? msg.caption ?? '';
+  if (!isTicketMessage(text)) return null;
+  return { ticketText: text, ...AUTO_SHEET };
+}
 
-  let body: TelegramUpdate;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
-  }
-
-  const msg = body.message ?? body.channel_post;
-  if (!msg) return NextResponse.json({ ok: true });
-
-  const extracted = extractCommandAndText(msg);
-  if (!extracted) return NextResponse.json({ ok: true });
-
-  const { command, ticketText } = extracted;
-  const { sheetId, label } = COMMAND_CONFIG[command];
-
+async function processTicket(
+  msg: TelegramMessage,
+  ticketText: string,
+  sheetId: string | undefined,
+  label: string,
+) {
   if (!sheetId) {
-    await sendMessage(msg.chat.id, `❌ Sheet ID chưa được cấu hình cho lệnh ${command}.`);
-    return NextResponse.json({ ok: true });
+    await sendMessage(msg.chat.id, '❌ Sheet ID chưa được cấu hình.');
+    return;
   }
 
   const parseResult = await parseTicketMessage(ticketText);
@@ -96,7 +95,7 @@ export async function POST(req: NextRequest) {
       telegram_chat_id: msg.chat.id,
     });
     await sendMessage(msg.chat.id, '❌ Không đọc được thông tin vé. Kiểm tra lại định dạng tin nhắn.');
-    return NextResponse.json({ ok: true });
+    return;
   }
 
   let rowsWritten = 0;
@@ -123,6 +122,32 @@ export async function POST(req: NextRequest) {
   if (status === 'success') {
     await sendMessage(msg.chat.id, buildSuccessMessage(rowsWritten, sheetId, label));
   }
+}
 
-  return NextResponse.json({ ok: true, rows_written: rowsWritten });
+export async function POST(req: NextRequest) {
+  const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
+  if (secret) {
+    const headerSecret = req.headers.get('x-telegram-bot-api-secret-token');
+    if (headerSecret !== secret) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+  }
+
+  let body: TelegramUpdate;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
+
+  const msg = body.message ?? body.channel_post;
+  if (!msg) return NextResponse.json({ ok: true });
+
+  // Ưu tiên command mode trước, fallback sang auto mode
+  const extracted = extractCommandMode(msg) ?? extractAutoMode(msg);
+  if (!extracted) return NextResponse.json({ ok: true });
+
+  await processTicket(msg, extracted.ticketText, extracted.sheetId, extracted.label);
+
+  return NextResponse.json({ ok: true });
 }
