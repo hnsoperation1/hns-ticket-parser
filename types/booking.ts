@@ -8,6 +8,9 @@ export interface ParsedBooking {
   routing: string;        // HANVNSGNVNHAN
   airlines: string;       // VNA | VJ | MH
   ticket_no: string;      // 7382321384551 | DBDH6H
+  gia_mua: number;        // Tổng tiền / số người trong PNR
+  gia_ban: number;        // FARE nếu có, không thì = gia_mua
+  loi_nhuan: number;      // gia_ban - gia_mua
   note: string;           // HOÀN | ĐỔI | ""
 }
 

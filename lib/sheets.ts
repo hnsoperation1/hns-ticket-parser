@@ -13,16 +13,19 @@ function getAuth() {
 
 function bookingToRow(b: ParsedBooking): string[] {
   return [
-    b.issued_date,
-    b.employee_code,
-    b.full_name,
-    b.cost_center,
-    b.dep_date,
-    b.arr_date,
-    b.routing,
-    b.airlines,
-    b.ticket_no,
-    b.note,
+    b.issued_date,      // A
+    b.employee_code,    // B
+    b.full_name,        // C
+    b.cost_center,      // D
+    b.dep_date,         // E
+    b.arr_date,         // F
+    b.routing,          // G
+    b.airlines,         // H
+    b.ticket_no,        // I
+    String(b.gia_mua),  // J
+    String(b.gia_ban),  // K
+    String(b.loi_nhuan),// L
+    b.note,             // M
   ];
 }
 
@@ -34,7 +37,7 @@ export async function appendBookings(bookings: ParsedBooking[], sheetId: string)
 
   await sheets.spreadsheets.values.append({
     spreadsheetId: sheetId,
-    range: 'A:J',
+    range: 'A:M',
     valueInputOption: 'USER_ENTERED',
     requestBody: { values: rows },
   });
