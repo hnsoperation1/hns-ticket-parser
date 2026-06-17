@@ -16,7 +16,7 @@ Từ tin nhắn đầu vào, hãy trả về JSON object có dạng: {"bookings"
 - routing: ghép mã sân bay 3 ký tự theo thứ tự bay, chèn mã hãng (VN/VJ/MH) giữa các chặng. Ví dụ: HANVNSGNVNHAN. Mỗi segment "HANNRT" -> HAN + NRT.
 - airlines: "VNA" cho Vietnam Airlines (số hiệu VN...), "VJ" cho Vietjet (VJ... hoặc Vietjetair), "MH" cho Malaysia Airlines.
 - ticket_no: số vé liền không dấu gạch. Với VNA lấy từ dòng "X.OPEN [số] TEN/". Với VJ lấy từ "Code: XXXXX".
-- gia_mua: "Tổng số tiền đã thanh toán" chia cho số hành khách trong cùng PNR đó. Là số nguyên (VND).
+- gia_mua: "Tổng số tiền đã thanh toán" của PNR đó chia cho số dòng TKT/TIME LIMIT trong cùng PNR đó (mỗi dòng "X.OPEN" là 1 hành khách). Là số nguyên làm tròn (VND). Không được đếm hành khách từ PNR khác.
 - gia_ban: lấy số đầu tiên sau "FARE" hoặc "FARE :" trong cùng PNR (bỏ phần +xxx phía sau). Nếu không có FARE thì gia_ban = gia_mua. Là số nguyên (VND).
 - loi_nhuan: gia_ban - gia_mua. Là số nguyên.
 - note: "HOAN" nếu có "HOAN VE", "DOI" nếu có "DOI VE", "" nếu không có.
