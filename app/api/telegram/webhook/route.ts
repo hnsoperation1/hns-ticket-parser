@@ -4,19 +4,13 @@ import { appendBookings } from '@/lib/sheets';
 import { logParse } from '@/lib/supabase';
 import { sendMessage, buildSuccessMessage } from '@/lib/telegram';
 
-// Map command → { sheetId, label hiển thị trong thông báo }
 const COMMAND_CONFIG: Record<string, { sheetId: string | undefined; label: string }> = {
   '/doc_ve': {
     sheetId: process.env.GOOGLE_SHEET_ID,
     label: 'Google Sheets',
   },
-  '/doc_ve_chuyen_gia': {
-    sheetId: process.env.GOOGLE_SHEET_ID_CHUYEN_GIA,
-    label: 'Google Sheets Chuyên Gia',
-  },
 };
 
-// Sheet mặc định dùng cho chế độ tự động (bot là admin)
 const AUTO_SHEET = {
   sheetId: process.env.GOOGLE_SHEET_ID,
   label: 'Google Sheets',
