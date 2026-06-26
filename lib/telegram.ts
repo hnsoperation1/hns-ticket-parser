@@ -16,11 +16,10 @@ export async function sendMessage(
   });
 }
 
-export async function sendMessageWithButton(
+export async function sendMessageWithButtons(
   chatId: number,
   text: string,
-  buttonText: string,
-  callbackData: string,
+  buttons: Array<{ text: string; callbackData: string }>,
   token = process.env.TELEGRAM_BOT_TOKEN!,
 ) {
   await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
@@ -31,7 +30,7 @@ export async function sendMessageWithButton(
       text,
       parse_mode: 'HTML',
       reply_markup: {
-        inline_keyboard: [[{ text: buttonText, callback_data: callbackData }]],
+        inline_keyboard: [buttons.map((b) => ({ text: b.text, callback_data: b.callbackData }))],
       },
     }),
   });
@@ -69,7 +68,7 @@ export function buildSuccessMessage(rowsWritten: number, sheetId: string, label:
   );
 }
 
-export function buildBookingSummary(bookings: ParsedBooking[]): string {
+function buildBookingRows(bookings: ParsedBooking[]): string {
   const rows = bookings
     .map((b) =>
       [
@@ -79,12 +78,25 @@ export function buildBookingSummary(bookings: ParsedBooking[]): string {
       ].join(' | ')
     )
     .join('\n');
+  return `<pre>${rows}</pre>`;
+}
 
+export function buildBookingSummary(bookings: ParsedBooking[]): string {
   return [
     `📋 Em đọc được <b>${bookings.length} booking</b>, chị kiểm tra giúp em ạ:`,
     '',
-    `<pre>${rows}</pre>`,
+    buildBookingRows(bookings),
     '',
     'Dạ nếu thông tin đúng chị bấm nút "Ghi vào Drive" giúp em ạ!',
+  ].join('\n');
+}
+
+export function buildCancelledMessage(bookings: ParsedBooking[]): string {
+  return [
+    `📋 Em đọc được <b>${bookings.length} booking</b>:`,
+    '',
+    buildBookingRows(bookings),
+    '',
+    '🚫 Đã huỷ, không ghi vào Drive.',
   ].join('\n');
 }

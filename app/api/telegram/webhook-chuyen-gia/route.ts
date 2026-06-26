@@ -4,11 +4,12 @@ import { appendBookings } from '@/lib/sheets';
 import { logParse, getPendingLog, updateLogWritten } from '@/lib/supabase';
 import {
   sendMessage,
-  sendMessageWithButton,
+  sendMessageWithButtons,
   answerCallbackQuery,
   editMessageText,
   buildSuccessMessage,
   buildBookingSummary,
+  buildCancelledMessage,
 } from '@/lib/telegram';
 
 const SHEET = {
@@ -63,9 +64,24 @@ async function handleCallback(cq: TelegramCallbackQuery) {
     return;
   }
 
-  const logId = cq.data;
+  const [action, logId] = (cq.data ?? '').split(':');
   if (!logId) {
     await answerCallbackQuery(cq.id, undefined, token);
+    return;
+  }
+
+  if (action === 'cancel') {
+    const pending = await getPendingLog(logId);
+    await updateLogWritten(logId, 0, 'error', 'Cancelled by user');
+    await answerCallbackQuery(cq.id, '🚫 Đã huỷ.', token);
+    if (cq.message) {
+      await editMessageText(
+        cq.message.chat.id,
+        cq.message.message_id,
+        pending ? buildCancelledMessage(pending.parsed_bookings) : '🚫 Đã huỷ, không ghi vào Drive.',
+        token,
+      );
+    }
     return;
   }
 
@@ -173,11 +189,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
-  await sendMessageWithButton(
+  await sendMessageWithButtons(
     msg.chat.id,
     buildBookingSummary(parseResult.bookings),
-    '✅ Ghi vào Drive',
-    logId,
+    [
+      { text: '❌ Không ghi', callbackData: `cancel:${logId}` },
+      { text: '✅ Ghi vào Drive', callbackData: `confirm:${logId}` },
+    ],
     token,
   );
 
