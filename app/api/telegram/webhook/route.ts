@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { parseTicketMessage } from '@/lib/openai';
 import { appendBookings } from '@/lib/sheets';
-import { logParse } from '@/lib/supabase';
-import { sendMessage, buildSuccessMessage } from '@/lib/telegram';
+import { logParse, getPendingLog, updateLogWritten } from '@/lib/supabase';
+import {
+  sendMessage,
+  sendMessageWithButton,
+  answerCallbackQuery,
+  editMessageText,
+  buildSuccessMessage,
+  buildBookingSummary,
+} from '@/lib/telegram';
 
 const COMMAND_CONFIG: Record<string, { sheetId: string | undefined; label: string }> = {
   '/doc_ve': {
@@ -19,17 +26,40 @@ const AUTO_SHEET = {
 interface TelegramUpdate {
   message?: TelegramMessage;
   channel_post?: TelegramMessage;
+  callback_query?: TelegramCallbackQuery;
 }
 
 interface TelegramMessage {
   message_id: number;
   chat: { id: number };
+  from?: { id: number; username?: string };
   text?: string;
   caption?: string;
   reply_to_message?: TelegramMessage;
 }
 
+interface TelegramCallbackQuery {
+  id: string;
+  from: { id: number };
+  message?: { message_id: number; chat: { id: number } };
+  data?: string;
+}
+
+function isAllowedId(userId: number): boolean {
+  const allowedIds = process.env.ALLOWED_USER_IDS;
+  if (!allowedIds) return true;
+  const ids = allowedIds.split(',').map((s) => s.trim());
+  return ids.includes(String(userId));
+}
+
+function isAllowedSender(msg: TelegramMessage): boolean {
+  return isAllowedId(msg.from?.id ?? 0);
+}
+
+// Khi REQUIRE_TRIGGER=false: bỏ filter, đọc mọi tin nhắn (kể cả raw GDS PNR)
+// Khi REQUIRE_TRIGGER=true hoặc không set: chỉ đọc tin có "Xuất vé thành công" hoặc "Code:"
 function isTicketMessage(text: string): boolean {
+  if (process.env.REQUIRE_TRIGGER === 'false') return true;
   return text.includes('Xuất vé thành công') || text.includes('Code:');
 }
 
@@ -92,29 +122,74 @@ async function processTicket(
     return;
   }
 
+  const logId = await logParse({
+    raw_message: ticketText,
+    parsed_bookings: parseResult.bookings,
+    rows_written: 0,
+    status: 'pending',
+    telegram_message_id: msg.message_id,
+    telegram_chat_id: msg.chat.id,
+    sheet_id: sheetId,
+    sheet_label: label,
+  });
+
+  if (!logId) {
+    await sendMessage(msg.chat.id, '❌ Lỗi hệ thống, vui lòng thử lại.');
+    return;
+  }
+
+  await sendMessageWithButton(
+    msg.chat.id,
+    buildBookingSummary(parseResult.bookings),
+    '✅ Ghi vào Drive',
+    logId,
+  );
+}
+
+async function handleCallback(cq: TelegramCallbackQuery) {
+  if (!isAllowedId(cq.from.id)) {
+    await answerCallbackQuery(cq.id);
+    return;
+  }
+
+  const logId = cq.data;
+  if (!logId) {
+    await answerCallbackQuery(cq.id);
+    return;
+  }
+
+  const pending = await getPendingLog(logId);
+  if (!pending) {
+    await answerCallbackQuery(cq.id, '❌ Không tìm thấy dữ liệu hoặc đã ghi rồi.');
+    return;
+  }
+
   let rowsWritten = 0;
   let status: 'success' | 'error' | 'partial' = 'success';
   let errorMessage: string | undefined;
 
   try {
-    rowsWritten = await appendBookings(parseResult.bookings, sheetId);
+    rowsWritten = await appendBookings(pending.parsed_bookings, pending.sheet_id);
   } catch (err) {
     status = 'partial';
     errorMessage = err instanceof Error ? err.message : String(err);
   }
 
-  await logParse({
-    raw_message: ticketText,
-    parsed_bookings: parseResult.bookings,
-    rows_written: rowsWritten,
-    status,
-    error_message: errorMessage,
-    telegram_message_id: msg.message_id,
-    telegram_chat_id: msg.chat.id,
-  });
+  await updateLogWritten(logId, rowsWritten, status, errorMessage);
+
+  const chatId = cq.message?.chat.id ?? pending.telegram_chat_id;
 
   if (status === 'success') {
-    await sendMessage(msg.chat.id, buildSuccessMessage(rowsWritten, sheetId, label));
+    await answerCallbackQuery(cq.id, `✅ Đã ghi ${rowsWritten} booking!`);
+    if (cq.message) {
+      await editMessageText(
+        chatId,
+        cq.message.message_id,
+        buildSuccessMessage(rowsWritten, pending.sheet_id, pending.sheet_label),
+      );
+    }
+  } else {
+    await answerCallbackQuery(cq.id, '❌ Lỗi khi ghi vào Sheet.');
   }
 }
 
@@ -134,8 +209,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
+  if (body.callback_query) {
+    await handleCallback(body.callback_query);
+    return NextResponse.json({ ok: true });
+  }
+
   const msg = body.message ?? body.channel_post;
   if (!msg) return NextResponse.json({ ok: true });
+  if (!isAllowedSender(msg)) return NextResponse.json({ ok: true });
 
   // Ưu tiên command mode trước, fallback sang auto mode
   const extracted = extractCommandMode(msg) ?? extractAutoMode(msg);
