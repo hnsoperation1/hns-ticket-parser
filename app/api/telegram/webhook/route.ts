@@ -56,13 +56,6 @@ function isAllowedSender(msg: TelegramMessage): boolean {
   return isAllowedId(msg.from?.id ?? 0);
 }
 
-// Khi REQUIRE_TRIGGER=false: bỏ filter, đọc mọi tin nhắn (kể cả raw GDS PNR)
-// Khi REQUIRE_TRIGGER=true hoặc không set: chỉ đọc tin có "Xuất vé thành công" hoặc "Code:"
-function isTicketMessage(text: string): boolean {
-  if (process.env.REQUIRE_TRIGGER === 'false') return true;
-  return text.includes('Xuất vé thành công') || text.includes('Code:');
-}
-
 function extractCommandMode(msg: TelegramMessage): { ticketText: string; sheetId: string | undefined; label: string } | null {
   const rawText = msg.text ?? '';
   // Bỏ @BotName nếu có: /doc_ve@HnsKtVeBot → /doc_ve
@@ -91,7 +84,7 @@ function extractCommandMode(msg: TelegramMessage): { ticketText: string; sheetId
 
 function extractAutoMode(msg: TelegramMessage): { ticketText: string; sheetId: string | undefined; label: string } | null {
   const text = msg.text ?? msg.caption ?? '';
-  if (!isTicketMessage(text)) return null;
+  if (!text) return null;
   return { ticketText: text, ...AUTO_SHEET };
 }
 

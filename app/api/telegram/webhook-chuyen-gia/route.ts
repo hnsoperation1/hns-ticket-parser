@@ -55,13 +55,6 @@ function isAllowedSender(msg: TelegramMessage): boolean {
   return isAllowedId(msg.from?.id ?? 0);
 }
 
-// Khi REQUIRE_TRIGGER=false: bỏ filter, đọc mọi tin nhắn (kể cả raw GDS PNR)
-// Khi REQUIRE_TRIGGER=true hoặc không set: chỉ đọc tin có "Xuất vé thành công" hoặc "Code:"
-function isTicketMessage(text: string): boolean {
-  if (process.env.REQUIRE_TRIGGER === 'false') return true;
-  return text.includes('Xuất vé thành công') || text.includes('Code:');
-}
-
 async function handleCallback(cq: TelegramCallbackQuery) {
   const token = getToken();
 
@@ -138,7 +131,7 @@ export async function POST(req: NextRequest) {
   if (!isAllowedSender(msg)) return NextResponse.json({ ok: true });
 
   const text = msg.text ?? msg.caption ?? '';
-  if (!isTicketMessage(text)) return NextResponse.json({ ok: true });
+  if (!text) return NextResponse.json({ ok: true });
 
   const { sheetId, label } = SHEET;
   const token = getToken();
