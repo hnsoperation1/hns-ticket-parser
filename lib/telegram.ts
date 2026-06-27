@@ -83,17 +83,17 @@ function buildBookingRows(bookings: ParsedBooking[]): string {
 
 export function buildBookingSummary(bookings: ParsedBooking[]): string {
   return [
-    `📋 Em đọc được <b>${bookings.length} booking</b>, chị kiểm tra giúp em ạ:`,
+    `Đọc được <b>${bookings.length} booking</b>, chị kiểm tra giúp em ạ:`,
     '',
     buildBookingRows(bookings),
     '',
-    'Dạ nếu thông tin đúng chị bấm nút "Ghi vào Drive" giúp em ạ!',
+    'Nếu thông tin đúng chị bấm nút "Ghi vào Drive" giúp em ạ!',
   ].join('\n');
 }
 
 export function buildCancelledMessage(bookings: ParsedBooking[]): string {
   return [
-    `📋 Em đọc được <b>${bookings.length} booking</b>:`,
+    `Đọc được <b>${bookings.length} booking</b>:`,
     '',
     buildBookingRows(bookings),
     '',
