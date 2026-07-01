@@ -61,11 +61,13 @@ export async function editMessageText(
   });
 }
 
-export function buildSuccessMessage(rowsWritten: number, sheetId: string, label: string): string {
-  return (
-    `✅ Đã ghi ${rowsWritten} booking vào ${label}.\n` +
-    `📋 <a href="${getSheetUrl(sheetId)}">Mở ${label}</a>`
-  );
+export function buildSuccessMessage(rowsWritten: number, sheetId: string, label: string, bookings: ParsedBooking[]): string {
+  return [
+    `✅ Đã ghi ${rowsWritten} booking vào ${label}.`,
+    '',
+    buildBookingRows(bookings),
+    `📋 <a href="${getSheetUrl(sheetId)}">Mở ${label}</a>`,
+  ].join('\n');
 }
 
 function buildBookingRows(bookings: ParsedBooking[]): string {

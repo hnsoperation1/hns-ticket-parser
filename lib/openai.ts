@@ -135,6 +135,65 @@ Quy tắc:
 
 ---
 
+## ĐỊNH DẠNG D — VNA "Thành công!" (simplified, không có TKT/TIME LIMIT)
+
+Nhận dạng: có dòng "Thành công!" (KHÔNG có "Xuất vé thành công"), số vé nằm trơ trên 1 dòng riêng
+
+Ví dụ:
+NGUYEN/THU HA MS (F0100- 94501) 16/JUL
+Thành công!
+DFDIU8
+  1.NGUYEN/THU HA MS
+  2 VN1641 B 16JUL 4 HANVCL HK1  0710 0835  16JUL  E  VN/DFDIU8
+NGUYEN THU HA MS
+7382322286990
+Tổng giá:
+2,497,181 VND
+
+Quy tắc:
+- issued_date: không có trong tin → dùng ngày hiện tại (hôm nay)
+- employee_code: từ header dạng "(F0100- 94501)" hoặc "(F0100-94501)" hoặc "(F0100 - 94501)" → F0100. Chấp nhận mọi dạng space xung quanh dấu gạch
+- cost_center: số sau dấu gạch trong ngoặc → 94501
+- full_name: từ dòng "N.HO/TEN MR/MS" trong danh sách pax (ví dụ "1.NGUYEN/THU HA MS")
+- dep_date/arr_date: ngày từ segment bay (DDMON → DD/MM/YYYY)
+- routing: từ route code 6 ký tự trong segment (HANVCL → HAN + VCL), ghép với mã hãng
+- airlines: từ số hiệu chuyến bay (VN... → VNA)
+- ticket_no: dòng chỉ chứa số dài (10-13 chữ số) đứng một mình sau tên hành khách
+- gia_mua: số sau "Tổng giá:" (bỏ dấu phẩy, bỏ " VND"), chia cho số hành khách nếu nhiều người
+- gia_ban: = gia_mua (không có FARE riêng)
+- loi_nhuan: 0
+
+---
+
+## ĐỊNH DẠNG E — Vietjet GDS (PNR 6 ký tự, không có "Code:")
+
+Nhận dạng: số hiệu chuyến bay bắt đầu bằng VJ (VJ426...) VÀ có mã PNR 6 ký tự alphanumeric đứng một mình trên 1 dòng VÀ KHÔNG có dòng "Code:" hay "Hành khách:"
+
+Ví dụ:
+LE/QUANG HUY MR (M50149-14601)
+BJUVE2
+1. LE/QUANG HUY MR (ADT)
+2. VJ426  03JUL26 PXUHAN 1230 1405
+20KGS
+
+1,176,381
+
+Quy tắc:
+- issued_date: không có trong tin → dùng ngày hiện tại (hôm nay)
+- employee_code: từ header "(M50149-14601)" → M50149. Chấp nhận mọi dạng space quanh dấu gạch
+- cost_center: số sau dấu gạch → 14601
+- full_name: từ header hoặc dòng "N. HO/TEN MR (ADT)" (bỏ phần "(ADT)")
+- dep_date: ngày từ segment (03JUL26 → 03/07/2026). Format DDMONYY: 2 số cuối là năm (26 → 2026)
+- arr_date: = dep_date nếu một chiều, ngày segment cuối nếu khứ hồi
+- routing: route code 6 ký tự trong segment (PXUHAN → PXU + HAN), chèn "VJ" giữa các chặng → PXUVJAHAN
+- airlines: "VJA"
+- ticket_no: mã PNR 6 ký tự alphanumeric đứng một mình (BJUVE2) — KHÔNG phải số hiệu chuyến bay
+- gia_mua: số bare (có thể có dấu phẩy, không có chữ VND) → bỏ dấu phẩy lấy số nguyên. Chia cho số hành khách nếu nhiều người
+- gia_ban: = gia_mua
+- loi_nhuan: 0
+
+---
+
 ## LƯU Ý CHUNG
 
 - Năm: DDMONYY (22JUN26) → 2026. DDMON (29JUN) → suy từ năm hiện tại (2026). Nếu tháng đã qua → năm sau.

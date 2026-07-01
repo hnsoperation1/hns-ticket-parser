@@ -112,7 +112,7 @@ async function processTicket(
       telegram_message_id: msg.message_id,
       telegram_chat_id: msg.chat.id,
     });
-    await sendMessage(msg.chat.id, '❌ Không đọc được thông tin vé. Kiểm tra lại định dạng tin nhắn.');
+    await sendMessage(msg.chat.id, '❌ Oh no! Em không đọc được thông tin booking. Chị kiểm tra lại định dạng tin nhắn hoặc bảo Chat GPT xử lý giúp em.');
     return;
   }
 
@@ -195,7 +195,7 @@ async function handleCallback(cq: TelegramCallbackQuery) {
       await editMessageText(
         chatId,
         cq.message.message_id,
-        buildSuccessMessage(rowsWritten, pending.sheet_id, pending.sheet_label),
+        buildSuccessMessage(rowsWritten, pending.sheet_id, pending.sheet_label, pending.parsed_bookings),
       );
     }
   } else {
